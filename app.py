@@ -1,7 +1,7 @@
 from flask import Flask
 
-UPLOAD_FOLDER = 'D:/Project Fix/Python Project/absensi_sd/img_faces'
-UPLOAD_FOLDER2 = 'D:/Project Fix/Python Project/absensi_sd/img_location'
+UPLOAD_FOLDER = 'D:/Project Fix/Python Project/absensi_sd/img_faces/'
+UPLOAD_FOLDER2 = 'D:/Project Fix/Python Project/absensi_sd/img_location/'
 
 app = Flask(__name__)
 app.secret_key = "secret key"

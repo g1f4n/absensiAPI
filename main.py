@@ -4,6 +4,8 @@ from app import app
 import mysql.connector
 from flask import Flask, redirect, jsonify, session
 from flask import flash, request, Response
+from flask import send_from_directory
+from flask import current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import cv2
@@ -12,6 +14,9 @@ import jsonpickle
 from PIL import Image
 from io import BytesIO
 import json
+import base64
+import requests
+from time import strftime
 
 
 mydb = mysql.connector.connect(
@@ -67,6 +72,8 @@ def dataAll():
     finally:
         mycursor.close()
 
+    print(e)
+
 # select semua data dari table guru
 @app.route('/guru')
 def dataGuru():
@@ -87,9 +94,9 @@ def dataGuru():
     #     mycursor.close()
 
 # select data by nip dari table guru
-@app.route('/guruById/<string:id>')
-def dataGuruById(id):
-
+@app.route('/guruById')
+def dataGuruById():
+    id = request.args.get('nip')
     mycursor = mydb.cursor()
     mycursor.execute("SELECT * FROM tbl_guru WHERE nip = '"+ id +"'")
     row_headers=[x[0] for x in mycursor.description]
@@ -159,9 +166,10 @@ def updateGuru():
         mycursor.close()
 
 # delete data guru
-@app.route('/delete_guru/<string:id>')
-def deleteGuru(id):
+@app.route('/delete_guru')
+def deleteGuru():
     try:
+        id = request.args.get('nip')
         mycursor = mydb.cursor()
         sql = "DELETE FROM tbl_guru WHERE nip = %s"
         val = (id,)
@@ -195,12 +203,12 @@ def dataKelas():
         mycursor.close()
 
 # select data kelas by id
-@app.route('/kelasById/<int:id>')
-def dataKelasById(id):
-
+@app.route('/kelasById')
+def dataKelasById():
+    id_kelas = request.args.get('id_kelas')
     mycursor = mydb.cursor()
     sql = "SELECT * FROM tbl_kelas WHERE id_kelas = %s"
-    val = (id,)
+    val = (id_kelas,)
     mycursor.execute(sql, val)
     row_headers=[x[0] for x in mycursor.description]
     myresult = mycursor.fetchall()
@@ -222,8 +230,8 @@ def addKelas():
 
             # insert data
             mycursor = mydb.cursor()
-            sql = "INSERT INTO tbl_kelas (ruang_kelas, jml_siswa) VALUES (%s, %s)"
-            val = (_ruang_kelas, _jml_siswa,)
+            sql = """INSERT INTO tbl_kelas (ruang_kelas, jml_siswa) VALUES (%s, %s)"""
+            val = (_ruang_kelas, _jml_siswa)
             mycursor.execute(sql, val)
             mydb.commit()
             resp = jsonify("Data Berhasil Di Tambahkan")
@@ -237,7 +245,7 @@ def addKelas():
 # update data kelas
 @app.route('/update_kelas', methods = ['POST'])
 def updateKelas():
-    try:
+    # try:
         _id_kelas = request.form['id_kelas']
         _ruang_kelas = request.form['ruang_kelas']
         _jml_siswa = request.form['jml_siswa']
@@ -252,15 +260,16 @@ def updateKelas():
             resp = jsonify("Data Berhasil Di Ubah")
             resp.status_code = 200
             return resp
-    except Exception as e:
-        print(e)
-    finally:
+    # except Exception as e:
+    #     print(e)
+    # finally:
         return mycursor.close()   
 
 # delete data kelas
-@app.route('/delete_kelas/<string:id>')
-def deleteKelas(id):
+@app.route('/delete_kelas')
+def deleteKelas():
     try:
+        id = request.args.get('id_kelas')
         mycursor = mydb.cursor()
         sql = "DELETE FROM tbl_kelas WHERE id_kelas = %s"
         val = (id,)
@@ -294,9 +303,9 @@ def dataOrtu():
         mycursor.close()
 
 # select data ortu by id
-@app.route('/ortuById/<string:id>')
-def dataOrtuById(id):
-
+@app.route('/ortuById')
+def dataOrtuById():
+    id = request.args.get('username')
     mycursor = mydb.cursor()
     sql = "SELECT * FROM tbl_ortu WHERE username = %s"
     val = (id,)
@@ -357,9 +366,10 @@ def UpdateOrtu():
         mycursor.close()
 
 # delete data ortu
-@app.route('/delete_ortu/<string:id>')
-def deleteOrtu(id):
+@app.route('/delete_ortu')
+def deleteOrtu():
     try:
+        id = request.args.get('username')
         mycursor = mydb.cursor()
         sql = "DELETE FROM tbl_ortu WHERE username = %s"
         val = (id,)
@@ -393,9 +403,9 @@ def dataSiswa():
         mycursor.close()
 
 # select data siswa by id
-@app.route('/siswaById/<string:id>')
-def dataSiswaById(id):
-
+@app.route('/siswaById')
+def dataSiswaById():
+    id = request.args.get('nis')
     mycursor = mydb.cursor()
     sql = "SELECT * FROM tbl_siswa WHERE nis = %s"
     val = (id,)
@@ -454,64 +464,71 @@ def addSiswa():
     finally:
         mycursor.close()
 
-# upload image
-@app.route('/absen', methods = ['POST'])
-def absen():
+# select image
+@app.route('/image', methods = ['GET'])
+def get_image():
     # try:
-        # if 'data_wajah' not in request.files:
-        #     resp = jsonify({'message' : 'No file part in the request'})
-        #     resp.status_code = 400
-        #     return resp
-        # file = request.files['data_wajah']
-        # if file.filename == '':
-        #     resp = jsonify({'message' : 'No file selected for uploading'})
-        #     resp.status_code = 400
-        #     return resp
-        # if file and allowed_file(file.filename):
-        #     filename = secure_filename(file.filename)
-        #     file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        #     mycursor = mydb.cursor()
-        #     sql = "INSERT INTO tbl_siswa(data_wajah) VALUES (%s)"
-        #     val = (filename,)
-        #     mycursor.execute(sql, val)
-        #     mydb.commit()
-        #     resp = jsonify({'message' : 'File successfully uploaded'})
-        #     resp.status_code = 201
-        #     return resp
-        # else:
-        #     resp = jsonify({'message' : 'Allowed file types are txt, pdf, png, jpg, jpeg, gif'})
-        #     resp.status_code = 400
-        #     return resp
+        mycursor = mydb.cursor()
+        mycursor.execute("SELECT data_wajah FROM tbl_siswa")
+        # row_headers=[x[0] for x in mycursor.description]
+        myresult = mycursor.fetchall()
+        # json_data = {'data':myresult}
+        # for result in myresult:
+        #     json_data.append(dict(zip(row_headers, result)))
+        # for row in myresult:
+        #     data = {'data': row[0]}
+        json_data = {'data':myresult}
+        resp = jsonify(myresult)
+        resp.status_code = 200
+        return resp
     # except Exception as e:
     #     print(e)
     # finally:
     #     mycursor.close()
+
+@app.route('/download/<path:filename>', methods = ['GET', 'POST'])
+def download(filename):
+    path = os.path.join(current_app.root_path, 'img_faces/')
+    return send_from_directory(directory=path, filename=filename)
+
+# upload image
+@app.route('/absen/<string:username>', methods = ['POST'])
+def absen(username):
     r = request
+    
     # convert string of image data to uint8
     nparr = np.fromstring(r.data, np.uint8)
-    # # dataName = r.json.data
     
-    # imgName = r.data
-    print(r.data)
     # decode image
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
+    
+    
     # # do some fancy processing here....
-    # # file = request.files[img]
-    p = os.path.sep.join([app.config['UPLOAD_FOLDER'], 'gifan.jpg'])
+    # timeImg = strftime("%Y%m%d%H%M%S")
+    time = strftime("%Y-%m-%d %H:%M:%S")
+    splitUsername = username.split("_")
+    imgName = splitUsername[2]
+    nama = splitUsername[1]
+    nis = splitUsername[0]
+
+    p = os.path.sep.join([app.config['UPLOAD_FOLDER'] + imgName])
+    loc = os.path.sep.join([app.config['UPLOAD_FOLDER2'] + imgName])
     cv2.imwrite(p, img)
-    # imgName = p.split()
-    # # print(r.data)
-    # print(nparr)
-    # # mycursor = mydb.cursor()
-    # # sql = "INSERT INTO tbl_siswa(data_wajah) VALUES (%s)"
-    # # val = (p,)
-    # # mycursor.execute(sql, val)
-    # # mydb.commit()
+    cv2.imwrite(loc, img)
+    
+    mycursor = mydb.cursor()
+    if strftime("%H:%M:%S") >= "12:00:00":
+        sql = "INSERT INTO tbl_siswa(data_wajah, nama_siswa, nis, jam_keluar, lokasi_terakhir) VALUES (%s, %s, %s, %s, %s)"
+        val = (imgName, nama, nis, time, imgName)
+    else :
+        sql = "INSERT INTO tbl_siswa(data_wajah, nama_siswa, nis, jam_masuk, lokasi_terakhir) VALUES (%s, %s, %s, %s, %s)"
+        val = (imgName, nama, nis, time, imgName)
+    mycursor.execute(sql, val)
+    mydb.commit()
 
     
     # build a response dict to send back to client
-    response = {'message': 'image received. size={}x{}'.format(img.shape[1], img.shape[0])
+    response = {'message': 'Absent Done!!'.format(img.shape[1], img.shape[0])
                 }
     # encode response using jsonpickle
     response_pickled = jsonpickle.encode(response)
@@ -553,9 +570,10 @@ def updateSiswa():
         mycursor.close()
 
 # delete data siswa
-@app.route('/delete_siswa/<string:id>')
-def deleteSiswa(id):
+@app.route('/delete_siswa')
+def deleteSiswa():
     try:
+        id = request.args.get('nis')
         mycursor = mydb.cursor()
         sql = "DELETE FROM tbl_siswa WHERE nis = %s"
         val = (id,)
@@ -603,8 +621,8 @@ def login_ortu():
             if row:
                 if check_password_hash(row[1], _password1):
                     session['username_ortu'] = row[0]
-                    session['nis_siswa'] = row[3]
-                    session['nama_ortu'] = row[4]
+                    session['nis_siswa'] = row[2]
+                    session['nama_ortu'] = row[3]
                     mycursor.close()
                     return jsonify({"message": "login berhasil"})
                 else:
